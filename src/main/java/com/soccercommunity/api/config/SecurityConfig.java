@@ -23,7 +23,12 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
 
     private static final String[] PERMIT_ALL_URLS = {
-            "/api/auth/**"
+            "/api/auth/**",
+            // Swagger
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-resources/**",
+            "/swagger-ui.html"
     };
 
     @Bean
