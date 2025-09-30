@@ -1,7 +1,11 @@
 package com.soccercommunity.api.user.service;
 
+import com.soccercommunity.api.common.exception.CustomException;
+import com.soccercommunity.api.common.response.ErrorCode;
 import com.soccercommunity.api.security.jwt.JwtTokenProvider;
 import com.soccercommunity.api.user.dto.TokenDto;
+import com.soccercommunity.api.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -14,7 +18,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
+    /* 닉네임 중복 체크 체크 */
+    public void checkNickName(String nickname) {
+        if(userRepository.existsByUserNickname(nickname)) {
+            throw new CustomException(ErrorCode.NICKNAME_ALREADY_EXISTS);
+        }
+    }
+
+    /* 이메일 중복 체크 */
+    public void checkEmail(String email) {
+        if (userRepository.existsByUserEmail(email)) {
+            throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+    }
+
+    /* 로그인 */
     @Transactional
     public TokenDto login(String email, String password) {
         // 1. Login ID/PW 를 기반으로 AuthenticationToken 생성

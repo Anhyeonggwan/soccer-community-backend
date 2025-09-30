@@ -1,8 +1,11 @@
 package com.soccercommunity.api.user.controller;
 
+import com.soccercommunity.api.common.response.ApiResponse;
+import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
 import com.soccercommunity.api.user.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,8 +21,8 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<TokenDto> login(@RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<ApiResponse<TokenDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
         TokenDto tokenDto = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
-        return ResponseEntity.ok(tokenDto);
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
     }
 }
