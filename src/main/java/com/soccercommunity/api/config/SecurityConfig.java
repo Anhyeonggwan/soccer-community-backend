@@ -30,7 +30,8 @@ public class SecurityConfig {
             "/swagger-resources/**",
             "/swagger-ui.html",
             "/api/users/check-nickname",
-            "/api/users/check-email"
+            "/api/users/check-email",
+            "/api/email/**"
     };
 
     @Bean
@@ -42,7 +43,7 @@ public class SecurityConfig {
                         .requestMatchers(PERMIT_ALL_URLS).permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, PERMIT_ALL_URLS), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

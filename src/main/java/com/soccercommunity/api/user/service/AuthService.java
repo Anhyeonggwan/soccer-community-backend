@@ -22,7 +22,7 @@ public class AuthService {
 
     /* 닉네임 중복 체크 체크 */
     public void checkNickName(String nickname) {
-        if(userRepository.existsByUserNickname(nickname)) {
+        if(userRepository.existsByNickname(nickname)) {
             throw new CustomException(ErrorCode.NICKNAME_ALREADY_EXISTS);
         }
     }
