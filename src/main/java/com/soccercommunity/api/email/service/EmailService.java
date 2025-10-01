@@ -77,7 +77,7 @@ public class EmailService {
         msgOfEmail += "<p style='font-size: 18px; color: #333333; margin-bottom: 10px;'>인증 코드:</p>";
         msgOfEmail += "<strong style='font-size: 32px; color: #007bff; letter-spacing: 5px;'>" + authCode + "</strong>";
         msgOfEmail += "</div>";
-        msgOfEmail += "<p style='color: #555555; line-height: 1.6;'>이 코드는 일정 시간 동안만 유효합니다. 만약 본인이 요청하지 않았다면 이 이메일을 무시해주세요.</p>";
+        msgOfEmail += "<p style='color: #555555; line-height: 1.6;'>이 코드는 3분 동안 유효합니다. 만약 본인이 요청하지 않았다면 이 이메일을 무시해주세요.</p>";
         msgOfEmail += "<p style='color: #555555; line-height: 1.6;'>감사합니다.<br>축구통 팀 드림</p>";
         msgOfEmail += "<div style='text-align: center; margin-top: 30px; font-size: 12px; color: #aaaaaa;'>";
         msgOfEmail += "<p>&copy; 2025 축구통. All rights reserved.</p>";
