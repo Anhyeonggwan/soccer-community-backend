@@ -9,7 +9,8 @@ import org.springframework.http.HttpStatus;
 public enum SuccessCode {
 
     OK(HttpStatus.OK, "요청에 성공했습니다."),
-    CREATED(HttpStatus.CREATED, "리소스가 성공적으로 생성되었습니다.");
+    CREATED(HttpStatus.CREATED, "리소스가 성공적으로 생성되었습니다."),
+    SIGNUP_SUCCESS(HttpStatus.CREATED, "회원가입에 성공했습니다.");
 
     private final HttpStatus status;
     private final String message;

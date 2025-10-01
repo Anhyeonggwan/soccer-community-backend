@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import com.soccercommunity.api.user.domain.UserEntity;
+import com.soccercommunity.api.user.dto.SignUpRequestDto;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +22,14 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    /* 회원가입 */
+    @Transactional
+    public void signUp(SignUpRequestDto requestDto) {
+        UserEntity newUser = UserEntity.from(requestDto, passwordEncoder);
+        userRepository.save(newUser);
+    }
 
     /* 닉네임 중복 체크 체크 */
     public void checkNickName(String nickname) {

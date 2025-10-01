@@ -17,6 +17,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.soccercommunity.api.user.dto.SignUpRequestDto;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -49,4 +52,13 @@ public class UserEntity extends BaseEntity {
     @Builder.Default
     private String userRole = "ROLE_USER"; // e.g., ROLE_USER, ROLE_ADMIN
 
+    /* 회원 데이터 생성 */
+    public static UserEntity from(SignUpRequestDto requestDto, PasswordEncoder passwordEncoder) {
+        return UserEntity.builder()
+                .userEmail(requestDto.getEmail())
+                .userPassword(passwordEncoder.encode(requestDto.getPassword()))
+                .nickname(requestDto.getNickname())
+                .userName(requestDto.getName())
+                .build();
+    }
 }
