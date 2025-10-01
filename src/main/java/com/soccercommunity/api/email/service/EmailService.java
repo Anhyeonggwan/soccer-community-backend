@@ -87,4 +87,22 @@ public class EmailService {
 
         return mimeMessage;
     }
+
+    /**
+     * 이메일과 인증 코드를 받아 Redis에 저장된 코드와 비교하여 인증합니다.
+     *
+     * @param email 인증할 이메일 주소
+     * @param code 사용자가 입력한 인증 코드
+     * @return 인증 성공 여부 (true: 성공, false: 실패)
+     */
+    public boolean verifyEmailCode(String email, String code) {
+        String key = VERIFICATION_CODE_PREFIX + email;
+        String storedCode = redisTemplate.opsForValue().get(key);
+
+        if (storedCode != null && storedCode.equals(code)) {
+            redisTemplate.delete(key); // 인증 성공 시 Redis에서 코드 삭제
+            return true;
+        }
+        return false;
+    }
 }
