@@ -3,6 +3,7 @@ package com.soccercommunity.api.user.controller;
 import com.soccercommunity.api.common.response.ApiResponse;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.dto.LoginRequestDto;
+import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
 import com.soccercommunity.api.user.service.AuthService;
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
 
+    /* 회원가입 */
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequestDto requestDto) {
         authService.signUp(requestDto);
@@ -28,9 +30,17 @@ public class AuthController {
         return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
     }
 
+    /* 로그인 */
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
         TokenDto tokenDto = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
+    }
+
+    /* 토큰 재발급 */
+    @PostMapping("/reissue")
+    public ResponseEntity<ApiResponse<TokenDto>> reissue(@RequestBody ReissueRequestDto tokenRequestDto) {
+        TokenDto newTokenDto = authService.reissue(tokenRequestDto);
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, newTokenDto));
     }
 }

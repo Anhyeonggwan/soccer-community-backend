@@ -11,10 +11,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import com.soccercommunity.api.user.domain.UserEntity;
+import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.data.redis.core.RedisTemplate;
+
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +28,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RedisTemplate<String, String> redisTemplate;
 
     /* 회원가입 */
     @Transactional
@@ -52,15 +58,50 @@ public class AuthService {
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, password);
 
         // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
-        //    authenticate 메서드가 실행이 될 때 CustomUserDetailsService 에서 만들었던 loadUserByUsername 메서드가 실행됨
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
         // 3. 인증 정보를 기반으로 JWT 토큰 생성
-        String token = jwtTokenProvider.createToken(authentication);
+        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
 
-        return TokenDto.builder()
-                .grantType("Bearer")
-                .accessToken(token)
-                .build();
+        // 4. RefreshToken Redis에 저장
+        redisTemplate.opsForValue().set(
+                authentication.getName(),
+                tokenDto.getRefreshToken(),
+                1, // 리프레시 토큰 유효기간 (일)
+                TimeUnit.DAYS
+        );
+
+        return tokenDto;
+    }
+
+    @Transactional
+    public TokenDto reissue(ReissueRequestDto tokenRequestDto) {
+        // 1. Refresh Token 검증
+        if (!jwtTokenProvider.validateToken(tokenRequestDto.getRefreshToken())) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // 2. Access Token 에서 Member ID 가져오기
+        Authentication authentication = jwtTokenProvider.getAuthentication(tokenRequestDto.getAccessToken());
+
+        // 3. Redis 에서 Member ID 를 기반으로 저장된 Refresh Token 값을 가져옵니다.
+        String refreshToken = redisTemplate.opsForValue().get(authentication.getName());
+        if (refreshToken == null || !refreshToken.equals(tokenRequestDto.getRefreshToken())) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
+        }
+
+        // 4. 새로운 토큰 생성
+        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
+
+        // 5. RefreshToken Redis 업데이트
+        redisTemplate.opsForValue().set(
+                authentication.getName(),
+                tokenDto.getRefreshToken(),
+                1, // 리프레시 토큰 유효기간 (일)
+                TimeUnit.DAYS
+        );
+
+        // 토큰 발급
+        return tokenDto;
     }
 }
