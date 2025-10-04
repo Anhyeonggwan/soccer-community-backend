@@ -20,6 +20,7 @@ public enum ErrorCode {
     // Token
     INVALID_REFRESH_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않은 리프레시 토큰입니다."),
     REFRESH_TOKEN_MISMATCH(HttpStatus.BAD_REQUEST, "리프레시 토큰이 일치하지 않습니다."),
+    INVALID_ACCESS_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않은 액세스 토큰입니다."),
 
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버에 오류가 발생했습니다.");
 

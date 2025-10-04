@@ -93,6 +93,7 @@ public class JwtTokenProvider {
         }
     }
 
+    /* 토큰 검증 */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
@@ -107,5 +108,12 @@ public class JwtTokenProvider {
             log.info("JWT 토큰이 잘못되었습니다.");
         }
         return false;
+    }
+
+    /* 토큰 남은 유효기간(ms) */
+    public Long getRemainingMilliseconds(String token) {
+        Date expiration = parseClaims(token).getExpiration();
+        long now = new Date().getTime();
+        return expiration.getTime() - now;
     }
 }

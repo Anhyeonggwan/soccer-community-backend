@@ -104,4 +104,25 @@ public class AuthService {
         // 토큰 발급
         return tokenDto;
     }
+
+    /* 로그아웃 */
+    @Transactional
+    public void logout(String accessToken) {
+        // 1. Access Token 검증
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
+
+        // 2. Access Token에서 Authentication 객체 가져오기
+        Authentication authentication = jwtTokenProvider.getAuthentication(accessToken);
+
+        // 3. Redis에서 해당 유저의 Refresh Token 삭제
+        if (redisTemplate.opsForValue().get(authentication.getName()) != null) {
+            redisTemplate.delete(authentication.getName());
+        }
+
+        // 4. Access Token을 블랙리스트에 추가
+        Long expiration = jwtTokenProvider.getRemainingMilliseconds(accessToken);
+        redisTemplate.opsForValue().set(accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
+    }
 }
