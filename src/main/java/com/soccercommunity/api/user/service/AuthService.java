@@ -10,7 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+
+import com.soccercommunity.api.user.domain.AuthProvider;
 import com.soccercommunity.api.user.domain.UserEntity;
+import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -35,6 +38,25 @@ public class AuthService {
     public void signUp(SignUpRequestDto requestDto) {
         UserEntity newUser = UserEntity.from(requestDto, passwordEncoder);
         userRepository.save(newUser);
+    }
+
+    /* Google 회원가입 */
+    @Transactional
+    public void googleSignUp(GoogleSignUpRequestDto requestDto) {
+
+        // Google ID 토큰 검증 로직 구현 (예: Google API 사용)
+        // 검증이 성공하면 필요한 정보를 반환하거나 추가 처리를 수행
+        if(userRepository.existsByProviderIdAndProvider(requestDto.getId(), AuthProvider.GOOGLE)) {
+            throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+        }
+
+        UserEntity newUser = UserEntity.from(requestDto);
+        userRepository.save(newUser);
+    }
+
+    /* Google ID 토큰 검증 */
+    public void googleCheck(String idToken) {
+        
     }
 
     /* 닉네임 중복 체크 체크 */

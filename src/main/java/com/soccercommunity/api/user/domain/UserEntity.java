@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
+import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import jakarta.persistence.EnumType;
@@ -71,6 +72,16 @@ public class UserEntity extends BaseEntity {
                 .nickname(requestDto.getNickname())
                 .userName(requestDto.getName())
                 .provider(AuthProvider.LOCAL)
+                .build();
+    }
+
+    /* 구글 회원 데이터 생성 */
+    public static UserEntity from(GoogleSignUpRequestDto requestDto) {
+        return UserEntity.builder()
+                .userEmail(requestDto.getEmail())
+                .userName(requestDto.getName())
+                .provider(AuthProvider.GOOGLE)
+                .providerId(requestDto.getId())
                 .build();
     }
 }

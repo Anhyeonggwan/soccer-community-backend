@@ -2,6 +2,7 @@ package com.soccercommunity.api.user.controller;
 
 import com.soccercommunity.api.common.response.ApiResponse;
 import com.soccercommunity.api.common.response.SuccessCode;
+import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
@@ -29,6 +30,22 @@ public class AuthController {
         authService.signUp(requestDto);
         ApiResponse<Void> response = ApiResponse.success(SuccessCode.SIGNUP_SUCCESS);
         return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
+    }
+
+    /* google 회원가입 */
+    @PostMapping("/google-signup")
+    public ResponseEntity<ApiResponse<Void>> googleSignup(@RequestBody GoogleSignUpRequestDto requestDto) {
+        authService.googleSignUp(requestDto);
+        ApiResponse<Void> response = ApiResponse.success(SuccessCode.SIGNUP_SUCCESS);
+        return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
+    }
+
+    /* google 로그인 */
+    @PostMapping("/google-login")
+    public ResponseEntity<ApiResponse<Void>> postMethodName(@RequestBody String entity) {
+        //TODO: process POST request
+        
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK));
     }
 
     /* 로그인 */
