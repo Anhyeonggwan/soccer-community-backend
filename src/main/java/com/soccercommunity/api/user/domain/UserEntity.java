@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -42,11 +45,19 @@ public class UserEntity extends BaseEntity {
     @Column(name = "user_email", nullable = false, unique = true, length = 100)
     private String userEmail;
 
-    @Column(name = "user_password", nullable = false, length = 100)
+    @Column(name = "user_password", length = 100)
     private String userPassword;
 
     @Column(name = "nickname", unique = true, length = 100)
     private String nickname;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider")
+    @Builder.Default
+    private AuthProvider provider = AuthProvider.LOCAL;
+
+    @Column(name = "provider_id")
+    private String providerId;
 
     @Column(name = "user_role")
     @Builder.Default
@@ -59,6 +70,7 @@ public class UserEntity extends BaseEntity {
                 .userPassword(passwordEncoder.encode(requestDto.getPassword()))
                 .nickname(requestDto.getNickname())
                 .userName(requestDto.getName())
+                .provider(AuthProvider.LOCAL)
                 .build();
     }
 }
