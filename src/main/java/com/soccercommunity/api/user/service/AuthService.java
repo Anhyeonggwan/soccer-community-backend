@@ -22,6 +22,7 @@ import com.soccercommunity.api.user.domain.AuthProvider;
 import com.soccercommunity.api.user.domain.UserEntity;
 import com.soccercommunity.api.user.domain.UserSocialLogin;
 import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
+import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
 import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
@@ -64,7 +65,7 @@ public class AuthService {
 
     /* Google ID 토큰 검증 */
     public GoogleSignUpRequestDto googleCheck(String idToken) {
-        // 실제 구현에서는 Google API를 호출하여 토큰을 검증하고, 유효한 경우
+        // Google API를 호출하여 토큰을 검증하고, 유효한 경우
         // 토큰에서 email, name, id(sub) 등을 추출하여 GoogleSignUpRequestDto에 담아 반환합니다.
         GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
                 .setAudience(java.util.Collections.singletonList(googleClientId)) // 여기에 실제 클라이언트 ID를 넣으세요
@@ -84,7 +85,6 @@ public class AuthService {
             email = pl.getEmail();
             name = (String) pl.get("name");
         } catch (GeneralSecurityException | IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
             throw new CustomException(ErrorCode.INVALID_GOOGLE_TOKEN); // 에러 처리
         }
@@ -117,12 +117,8 @@ public class AuthService {
             Optional<UserEntity> existingUserOpt = userRepository.findByUserEmail(email);
 
             if (existingUserOpt.isPresent()) {
-                // 2-2-1. 이메일은 같지만, 소셜 로그인이 연결되지 않은 기존 유저인 경우 (계정 연결)
-                user = existingUserOpt.get();
-                // 이미 해당 유저에게 다른 소셜 로그인이 연결되어 있는지 확인 (선택 사항)
-                if (userSocialLoginRepository.findByIdAndProvider(user.getUserId(), AuthProvider.GOOGLE).isPresent()) {
-                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS); // 이미 구글 계정이 연결되어 있음
-                }
+                // 2-2-1. 이메일은 같지만, 소셜 로그인이 연결되지 않은 기존 유저인 경우, 계정 연동이 필요하므로 에러를 발생시킨다.
+                throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
             } else {
                 // 2-2-2. 완전히 새로운 유저인 경우 (회원가입)
                 user = UserEntity.from(googleUserInfo);
@@ -252,5 +248,45 @@ public class AuthService {
         // 4. Access Token을 블랙리스트에 추가
         Long expiration = jwtTokenProvider.getRemainingMilliseconds(accessToken);
         redisTemplate.opsForValue().set(accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
+    }
+
+    /* Google 계정 연동 */
+    @Transactional
+    public void linkGoogleAccount(LinkGoogleRequestDto requestDto) {
+        // 1. 이메일/비밀번호로 기존 계정 인증
+        UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(requestDto.getEmail(), requestDto.getPassword());
+        authenticationManager.authenticate(authenticationToken);
+
+        // 2. 인증된 사용자 정보 가져오기
+        UserEntity user = userRepository.findByUserEmail(requestDto.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 3. Google ID 토큰 검증 및 정보 추출
+        GoogleSignUpRequestDto googleUserInfo = googleCheck(requestDto.getIdToken());
+
+        // 4. 기존 계정의 이메일과 구글 계정의 이메일이 일치하는지 확인
+        if (!user.getUserEmail().equals(googleUserInfo.getEmail())) {
+            throw new CustomException(ErrorCode.EMAIL_MISMATCH);
+        }
+
+        // 5. 이미 해당 구글 계정이 다른 유저에게 연동되어 있는지 확인
+        userSocialLoginRepository.findByProviderAndProviderId(AuthProvider.GOOGLE, googleUserInfo.getId())
+                .ifPresent(socialLogin -> {
+                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS); // 혹은 다른 적절한 에러 코드
+                });
+
+        // 6. 현재 유저가 이미 구글 계정과 연동되어 있는지 확인
+        if (userSocialLoginRepository.existsByUserAndProvider(user, AuthProvider.GOOGLE)) {
+            throw new CustomException(ErrorCode.USER_ALREADY_EXISTS); // 혹은 다른 적절한 에러 코드
+        }
+
+        // 7. UserSocialLogin 정보 저장 및 UserEntity에 연결
+        UserSocialLogin socialLogin = UserSocialLogin.builder()
+                .user(user)
+                .provider(AuthProvider.GOOGLE)
+                .providerId(googleUserInfo.getId())
+                .build();
+        userSocialLoginRepository.save(socialLogin);
+        user.addSocialLogin(socialLogin); // 양방향 관계 관리
     }
 }

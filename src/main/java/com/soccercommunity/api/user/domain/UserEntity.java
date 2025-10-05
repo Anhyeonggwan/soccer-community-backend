@@ -84,4 +84,9 @@ public class UserEntity extends BaseEntity {
     public void addSocialLogin(UserSocialLogin socialLogin) {
         this.socialLogins.add(socialLogin);
     }
+
+    // 닉네임 수정 메서드
+    public void setUserNickname(String nickname) {
+        this.nickname = nickname;
+    }
 }

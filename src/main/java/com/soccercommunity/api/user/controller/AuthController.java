@@ -6,6 +6,7 @@ import com.soccercommunity.api.user.dto.TokenDto;
 import com.soccercommunity.api.common.response.ApiResponse;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.dto.GoogleIdTokenDto;
+import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
 import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.service.AuthService;
 import jakarta.validation.Valid;
@@ -28,8 +29,8 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequestDto requestDto) {
         authService.signUp(requestDto);
-        ApiResponse<Void> response = ApiResponse.success(SuccessCode.SIGNUP_SUCCESS);
-        return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
+        ApiResponse<Void> response = ApiResponse.success(SuccessCode.SIGN_UP_SUCCESS);
+        return new ResponseEntity<>(response, SuccessCode.SIGN_UP_SUCCESS.getStatus());
     }
 
     /* 로그인 */
@@ -41,9 +42,14 @@ public class AuthController {
 
     /* 토큰 재발급 */
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<TokenDto>> reissue(@RequestBody ReissueRequestDto tokenRequestDto) {
-        TokenDto newTokenDto = authService.reissue(tokenRequestDto);
-        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, newTokenDto));
+    public ApiResponse<TokenDto> reissue(@RequestBody ReissueRequestDto request) {
+        return ApiResponse.success(SuccessCode.TOKEN_REISSUED, authService.reissue(request));
+    }
+
+    @PostMapping("/link/google")
+    public ResponseEntity<ApiResponse<Void>> linkGoogle(@RequestBody LinkGoogleRequestDto request) {
+        authService.linkGoogleAccount(request);
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.ACCOUNT_LINK_SUCCESS));
     }
 
     /* Google 로그인/회원가입 */
