@@ -1,27 +1,42 @@
 package com.soccercommunity.api.user.service;
 
-import com.soccercommunity.api.common.exception.CustomException;
-import com.soccercommunity.api.common.response.ErrorCode;
-import com.soccercommunity.api.security.jwt.JwtTokenProvider;
-import com.soccercommunity.api.user.dto.TokenDto;
 import com.soccercommunity.api.user.repository.UserRepository;
+import com.soccercommunity.api.user.repository.UserSocialLoginRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.soccercommunity.api.common.exception.CustomException;
+import com.soccercommunity.api.common.response.ErrorCode;
+import com.soccercommunity.api.security.jwt.JwtTokenProvider;
 import com.soccercommunity.api.user.domain.AuthProvider;
 import com.soccercommunity.api.user.domain.UserEntity;
+import com.soccercommunity.api.user.domain.UserSocialLogin;
 import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
+import com.soccercommunity.api.user.dto.TokenDto;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -30,33 +45,117 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final UserSocialLoginRepository userSocialLoginRepository;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
+
+    @Value("${google.client.id}")
+    private String googleClientId;
 
     /* 회원가입 */
     @Transactional
     public void signUp(SignUpRequestDto requestDto) {
+        if (userRepository.existsByUserEmail(requestDto.getEmail())) {
+            throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
         UserEntity newUser = UserEntity.from(requestDto, passwordEncoder);
         userRepository.save(newUser);
     }
 
-    /* Google 회원가입 */
-    @Transactional
-    public void googleSignUp(GoogleSignUpRequestDto requestDto) {
+    /* Google ID 토큰 검증 */
+    public GoogleSignUpRequestDto googleCheck(String idToken) {
+        // 실제 구현에서는 Google API를 호출하여 토큰을 검증하고, 유효한 경우
+        // 토큰에서 email, name, id(sub) 등을 추출하여 GoogleSignUpRequestDto에 담아 반환합니다.
+        GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                .setAudience(java.util.Collections.singletonList(googleClientId)) // 여기에 실제 클라이언트 ID를 넣으세요
+                .build();
 
-        // Google ID 토큰 검증 로직 구현 (예: Google API 사용)
-        // 검증이 성공하면 필요한 정보를 반환하거나 추가 처리를 수행
-        if(userRepository.existsByProviderIdAndProvider(requestDto.getId(), AuthProvider.GOOGLE)) {
-            throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+        String subject = null;
+        String email = null;
+        String name = null;
+        
+        try {
+            GoogleIdToken payload = verifier.verify(idToken);
+            GoogleIdToken.Payload pl = payload.getPayload();
+            if (pl == null) {  
+                throw new CustomException(ErrorCode.INVALID_GOOGLE_TOKEN);
+            }
+            subject = pl.getSubject();
+            email = pl.getEmail();
+            name = (String) pl.get("name");
+        } catch (GeneralSecurityException | IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            throw new CustomException(ErrorCode.INVALID_GOOGLE_TOKEN); // 에러 처리
         }
-
-        UserEntity newUser = UserEntity.from(requestDto);
-        userRepository.save(newUser);
+        
+        return GoogleSignUpRequestDto.builder()
+            .id(subject)    // 토큰의 'sub' 값
+            .email(email)  // 토큰의 'email' 값
+            .name(name) // 토큰의 'name' 값
+            .build();
     }
 
-    /* Google ID 토큰 검증 */
-    public void googleCheck(String idToken) {
-        
+    /* Google 로그인/회원가입 */
+    @Transactional
+    public TokenDto googleLogin(String idToken) {
+        // 1. Google ID 토큰 검증 및 사용자 정보 추출
+        GoogleSignUpRequestDto googleUserInfo = googleCheck(idToken);
+        String providerId = googleUserInfo.getId();
+        String email = googleUserInfo.getEmail();
+
+        // 2. UserSocialLogin 테이블에서 해당 providerId로 등록된 소셜 로그인 정보가 있는지 확인
+        Optional<UserSocialLogin> socialLoginOpt = userSocialLoginRepository.findByProviderAndProviderId(AuthProvider.GOOGLE, providerId);
+
+        UserEntity user;
+        if (socialLoginOpt.isPresent()) {
+            // 2-1. 이미 소셜 로그인 정보가 있다면, 기존 사용자
+            user = socialLoginOpt.get().getUser();
+        } else {
+            // 2-2. 소셜 로그인 정보가 없다면, 새로운 소셜 로그인 시도
+            // 해당 이메일로 기존 UserEntity가 있는지 확인
+            Optional<UserEntity> existingUserOpt = userRepository.findByUserEmail(email);
+
+            if (existingUserOpt.isPresent()) {
+                // 2-2-1. 이메일은 같지만, 소셜 로그인이 연결되지 않은 기존 유저인 경우 (계정 연결)
+                user = existingUserOpt.get();
+                // 이미 해당 유저에게 다른 소셜 로그인이 연결되어 있는지 확인 (선택 사항)
+                if (userSocialLoginRepository.findByIdAndProvider(user.getUserId(), AuthProvider.GOOGLE).isPresent()) {
+                    throw new CustomException(ErrorCode.USER_ALREADY_EXISTS); // 이미 구글 계정이 연결되어 있음
+                }
+            } else {
+                // 2-2-2. 완전히 새로운 유저인 경우 (회원가입)
+                user = UserEntity.from(googleUserInfo);
+                userRepository.save(user);
+            }
+
+            // UserSocialLogin 정보 저장 및 UserEntity에 연결
+            UserSocialLogin socialLogin = UserSocialLogin.builder()
+                    .user(user)
+                    .provider(AuthProvider.GOOGLE)
+                    .providerId(providerId)
+                    .build();
+            userSocialLoginRepository.save(socialLogin);
+            user.addSocialLogin(socialLogin); // 양방향 관계 관리
+        }
+
+        // 3. 인증 객체 생성 (소셜 로그인 사용자는 비밀번호가 없으므로, UserDetails를 직접 생성)
+        // CustomUserDetailsService에서 UserDetails를 로드하는 로직이 필요할 수 있음
+        List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole()));
+        Authentication authentication = new UsernamePasswordAuthenticationToken(user.getUserId(), null, authorities);
+
+        // 4. JWT 토큰 생성
+        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
+
+        // 5. RefreshToken Redis에 저장
+        redisTemplate.opsForValue().set(
+                authentication.getName(),
+                tokenDto.getRefreshToken(),
+                1, // 리프레시 토큰 유효기간 (일)
+                TimeUnit.DAYS
+        );
+
+        return tokenDto;
     }
 
     /* 닉네임 중복 체크 체크 */
@@ -82,12 +181,19 @@ public class AuthService {
         // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
+        // 2-1. 인증된 사용자의 UserEntity를 가져와 userId와 권한으로 새로운 Authentication 객체 생성
+        UserEntity user = userRepository.findByUserEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));  // 사용자 정보가 없을 경우 예외 처리
+        List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole()));
+        Authentication findAuthentication = new UsernamePasswordAuthenticationToken(user.getUserId(), null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
         // 3. 인증 정보를 기반으로 JWT 토큰 생성
-        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
+        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(findAuthentication);
 
         // 4. RefreshToken Redis에 저장
         redisTemplate.opsForValue().set(
-                authentication.getName(),
+                findAuthentication.getName(),   // principal이 userId이므로 getName()은 userId를 반환
                 tokenDto.getRefreshToken(),
                 1, // 리프레시 토큰 유효기간 (일)
                 TimeUnit.DAYS

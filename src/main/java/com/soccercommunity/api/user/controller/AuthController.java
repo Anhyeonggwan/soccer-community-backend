@@ -1,12 +1,12 @@
 package com.soccercommunity.api.user.controller;
 
-import com.soccercommunity.api.common.response.ApiResponse;
-import com.soccercommunity.api.common.response.SuccessCode;
-import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
-import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
+import com.soccercommunity.api.common.response.ApiResponse;
+import com.soccercommunity.api.common.response.SuccessCode;
+import com.soccercommunity.api.user.dto.GoogleIdTokenDto;
+import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,22 +32,6 @@ public class AuthController {
         return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
     }
 
-    /* google 회원가입 */
-    @PostMapping("/google-signup")
-    public ResponseEntity<ApiResponse<Void>> googleSignup(@RequestBody GoogleSignUpRequestDto requestDto) {
-        authService.googleSignUp(requestDto);
-        ApiResponse<Void> response = ApiResponse.success(SuccessCode.SIGNUP_SUCCESS);
-        return new ResponseEntity<>(response, SuccessCode.SIGNUP_SUCCESS.getStatus());
-    }
-
-    /* google 로그인 */
-    @PostMapping("/google-login")
-    public ResponseEntity<ApiResponse<Void>> postMethodName(@RequestBody String entity) {
-        //TODO: process POST request
-        
-        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK));
-    }
-
     /* 로그인 */
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
@@ -60,6 +44,13 @@ public class AuthController {
     public ResponseEntity<ApiResponse<TokenDto>> reissue(@RequestBody ReissueRequestDto tokenRequestDto) {
         TokenDto newTokenDto = authService.reissue(tokenRequestDto);
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, newTokenDto));
+    }
+
+    /* Google 로그인/회원가입 */
+    @PostMapping("/google")
+    public ResponseEntity<ApiResponse<TokenDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto) {
+        TokenDto tokenDto = authService.googleLogin(requestDto.getIdToken());
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
     }
 
     /* 로그아웃 */

@@ -21,8 +21,10 @@ import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.CascadeType;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @NoArgsConstructor
@@ -52,13 +54,9 @@ public class UserEntity extends BaseEntity {
     @Column(name = "nickname", unique = true, length = 100)
     private String nickname;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider")
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private AuthProvider provider = AuthProvider.LOCAL;
-
-    @Column(name = "provider_id")
-    private String providerId;
+    private List<UserSocialLogin> socialLogins = new ArrayList<>();
 
     @Column(name = "user_role")
     @Builder.Default
@@ -71,7 +69,6 @@ public class UserEntity extends BaseEntity {
                 .userPassword(passwordEncoder.encode(requestDto.getPassword()))
                 .nickname(requestDto.getNickname())
                 .userName(requestDto.getName())
-                .provider(AuthProvider.LOCAL)
                 .build();
     }
 
@@ -80,8 +77,11 @@ public class UserEntity extends BaseEntity {
         return UserEntity.builder()
                 .userEmail(requestDto.getEmail())
                 .userName(requestDto.getName())
-                .provider(AuthProvider.GOOGLE)
-                .providerId(requestDto.getId())
                 .build();
+    }
+
+    // 소셜 로그인 추가 편의 메소드
+    public void addSocialLogin(UserSocialLogin socialLogin) {
+        this.socialLogins.add(socialLogin);
     }
 }
