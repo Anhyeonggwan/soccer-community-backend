@@ -19,6 +19,8 @@ import lombok.NoArgsConstructor;
 
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
+import com.soccercommunity.api.user.dto.NaverUserProfileDto;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import jakarta.persistence.OneToMany;
@@ -68,6 +70,13 @@ public class UserEntity extends BaseEntity {
                 .userEmail(requestDto.getEmail())
                 .userPassword(passwordEncoder.encode(requestDto.getPassword()))
                 .nickname(requestDto.getNickname())
+                .userName(requestDto.getName())
+                .build();
+    }
+
+    public static UserEntity from(NaverUserProfileDto.Response requestDto) {
+        return UserEntity.builder()
+                .userEmail(requestDto.getEmail())
                 .userName(requestDto.getName())
                 .build();
     }

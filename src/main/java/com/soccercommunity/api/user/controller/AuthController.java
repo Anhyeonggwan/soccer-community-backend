@@ -7,16 +7,26 @@ import com.soccercommunity.api.common.response.ApiResponse;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.dto.GoogleIdTokenDto;
 import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
+import com.soccercommunity.api.user.dto.LinkNaverRequestDto;
 import com.soccercommunity.api.user.dto.LoginRequestDto;
 import com.soccercommunity.api.user.service.AuthService;
+
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.io.IOException;
+
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 @RestController
 @RequestMapping("/api/auth")
@@ -46,6 +56,29 @@ public class AuthController {
         return ApiResponse.success(SuccessCode.TOKEN_REISSUED, authService.reissue(request));
     }
 
+    /* Naver 로그인/회원가입 */
+    @GetMapping("/naver")
+    public void naverLogin(@RequestParam("code") String code, @RequestParam("state") String state, HttpServletResponse response) throws IOException {
+        TokenDto tokenDto = authService.naverLogin(code, state);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+                .httpOnly(true)
+                .path("/")
+                .maxAge(604800) // 1 days
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+        // 프론트로 토큰 전달(팝업 닫기 등 화면 처리)
+        String redirectUrl = "http://localhost:3000/auth/callback?accessToken=" + tokenDto.getAccessToken();
+        response.sendRedirect(redirectUrl);
+    }
+
+    /* Naver 계정 연동 */
+    @PostMapping("/link/naver")
+    public ResponseEntity<ApiResponse<Void>> linkNaver(@RequestBody LinkNaverRequestDto requestDto) {
+        authService.linkNaverAccount(requestDto);
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.ACCOUNT_LINK_SUCCESS));
+    }
+
+    /* Google 계정 연동 */
     @PostMapping("/link/google")
     public ResponseEntity<ApiResponse<Void>> linkGoogle(@RequestBody LinkGoogleRequestDto request) {
         authService.linkGoogleAccount(request);

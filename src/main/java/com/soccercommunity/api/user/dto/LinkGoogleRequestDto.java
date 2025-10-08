@@ -6,7 +6,5 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class LinkGoogleRequestDto {
-    private String email;
-    private String password;
     private String idToken;
 }
