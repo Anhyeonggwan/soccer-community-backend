@@ -60,6 +60,7 @@ public class JwtTokenProvider {
 
         // Refresh Token 생성
         String refreshToken = Jwts.builder()
+                .setSubject(authentication.getName())
                 .setExpiration(new Date(now + refreshTokenValidityInMilliseconds))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -83,6 +84,11 @@ public class JwtTokenProvider {
         UserDetails principal = new User(claims.getSubject(), "", authorities);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
+    }
+
+    /* 토큰에서 subject(사용자 이름) 가져오기 */
+    public String getSubject(String token) {
+        return parseClaims(token).getSubject();
     }
 
     private Claims parseClaims(String token) {

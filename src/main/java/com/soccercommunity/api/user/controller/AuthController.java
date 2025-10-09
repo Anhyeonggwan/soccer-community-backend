@@ -1,9 +1,10 @@
 package com.soccercommunity.api.user.controller;
 
-import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
+import com.soccercommunity.api.common.exception.CustomException;
 import com.soccercommunity.api.common.response.ApiResponse;
+import com.soccercommunity.api.common.response.ErrorCode;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.dto.GoogleIdTokenDto;
 import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -45,15 +47,32 @@ public class AuthController {
 
     /* 로그인 */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<TokenDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<ApiResponse<TokenDto>> login(@Valid @RequestBody LoginRequestDto loginRequestDto, HttpServletResponse response) {
         TokenDto tokenDto = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+                .httpOnly(true)
+                .path("/api/auth/reissue")
+                .maxAge(604800) // 1 days
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
     }
 
     /* 토큰 재발급 */
     @PostMapping("/reissue")
-    public ApiResponse<TokenDto> reissue(@RequestBody ReissueRequestDto request) {
-        return ApiResponse.success(SuccessCode.TOKEN_REISSUED, authService.reissue(request));
+    public ResponseEntity<ApiResponse<TokenDto>> reissue(@CookieValue(name = "refreshToken", required = false) String refreshToken, HttpServletResponse response) {
+        System.out.println("Received refreshToken from cookie >>> " + refreshToken);
+        if (refreshToken == null) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+        TokenDto tokenDto = authService.reissue(refreshToken);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+                .httpOnly(true)
+                .path("/api/auth/reissue")
+                .maxAge(604800) // 1 days
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.TOKEN_REISSUED, tokenDto));
     }
 
     /* Naver 로그인/회원가입 */

@@ -4,12 +4,15 @@ import com.soccercommunity.api.user.repository.UserRepository;
 import com.soccercommunity.api.user.repository.UserSocialLoginRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -25,7 +28,6 @@ import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
 import com.soccercommunity.api.user.dto.LinkNaverRequestDto;
 import com.soccercommunity.api.user.dto.NaverUserProfileDto;
-import com.soccercommunity.api.user.dto.ReissueRequestDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
 import com.soccercommunity.api.user.naver.NaverApi;
@@ -46,6 +48,7 @@ import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
@@ -54,6 +57,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
     private final NaverApi naverApi;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -190,28 +194,33 @@ public class AuthService {
                 1,
                 TimeUnit.DAYS
         );
-
         return tokenDto;
     }
 
     /* 토큰 재발급 */
     @Transactional
-    public TokenDto reissue(ReissueRequestDto tokenRequestDto) {
-        if (!jwtTokenProvider.validateToken(tokenRequestDto.getRefreshToken())) {
+    public TokenDto reissue(String refreshToken) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
+            log.warn("Invalid or expired incoming refreshToken: {}", refreshToken);
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        Authentication authentication = jwtTokenProvider.getAuthentication(tokenRequestDto.getAccessToken());
+        // Refresh Token에서 사용자 ID(subject) 추출
+        Long userId = Long.parseLong(jwtTokenProvider.getSubject(refreshToken));
+        log.info("Extracted userId from refreshToken: {}", userId);
+        UserDetails userDetails = customUserDetailsService.loadUserById(userId);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-        String refreshToken = redisTemplate.opsForValue().get(authentication.getName());
-        if (refreshToken == null || !refreshToken.equals(tokenRequestDto.getRefreshToken())) {
+        String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId));
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            log.warn("RefreshToken mismatch for user {}. Stored: {}, Incoming: {}", userId, storedRefreshToken, refreshToken);
             throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
         TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
 
         redisTemplate.opsForValue().set(
-                authentication.getName(),
+                String.valueOf(userId),
                 tokenDto.getRefreshToken(),
                 1,
                 TimeUnit.DAYS
