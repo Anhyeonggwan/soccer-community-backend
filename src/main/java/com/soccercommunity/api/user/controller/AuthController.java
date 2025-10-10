@@ -51,8 +51,8 @@ public class AuthController {
         TokenDto tokenDto = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
         ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
                 .httpOnly(true)
-                .path("/api/auth/reissue")
-                .maxAge(604800) // 1 days
+                .path("/")
+                .maxAge(86400) // 1 days
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
@@ -61,15 +61,14 @@ public class AuthController {
     /* 토큰 재발급 */
     @PostMapping("/reissue")
     public ResponseEntity<ApiResponse<TokenDto>> reissue(@CookieValue(name = "refreshToken", required = false) String refreshToken, HttpServletResponse response) {
-        System.out.println("Received refreshToken from cookie >>> " + refreshToken);
         if (refreshToken == null) {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
         TokenDto tokenDto = authService.reissue(refreshToken);
         ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
                 .httpOnly(true)
-                .path("/api/auth/reissue")
-                .maxAge(604800) // 1 days
+                .path("/")
+                .maxAge(86400) // 1 days
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.TOKEN_REISSUED, tokenDto));
@@ -82,7 +81,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
                 .httpOnly(true)
                 .path("/")
-                .maxAge(604800) // 1 days
+                .maxAge(86400) // 1 days
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
         // 프론트로 토큰 전달(팝업 닫기 등 화면 처리)
@@ -106,15 +105,29 @@ public class AuthController {
 
     /* Google 로그인/회원가입 */
     @PostMapping("/google")
-    public ResponseEntity<ApiResponse<TokenDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto) {
+    public ResponseEntity<ApiResponse<TokenDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto, HttpServletResponse response) {
         TokenDto tokenDto = authService.googleLogin(requestDto.getIdToken());
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+                .httpOnly(true)
+                .path("/")
+                .maxAge(86400) // 1 days
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
     }
 
     /* 로그아웃 */
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader("Authorization") String accessToken) {
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader("Authorization") String accessToken, HttpServletResponse response) {
         authService.logout(accessToken.substring(7));
+
+        // 브라우저의 refreshToken 쿠키를 삭제하는 로직
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "deleted") // 값은 비어있지 않은 아무 문자열
+                .maxAge(0)
+                .path("/")
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
+
         return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK));
     }
 }
