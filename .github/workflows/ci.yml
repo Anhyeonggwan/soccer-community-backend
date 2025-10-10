@@ -1,0 +1,38 @@
+name: CI
+
+permissions:
+  contents: read
+  
+on:
+  # main 브랜치에 직접 push될 때도 실행되도록 추가
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test: # job의 ID를 더 명확하게 변경
+    name: Build and Test # UI에 표시될 작업 이름
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: gradle # 이 한 줄로 Gradle 캐싱을 처리합니다.
+
+      - name: Make gradlew executable
+        # gradlew 스크립트에 실행 권한을 부여합니다. (필수)
+        run: chmod +x ./gradlew
+
+      - name: Build and Test with Gradle
+        run: ./gradlew build
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_CONFIG_LOCATION: classpath:/application.properties
