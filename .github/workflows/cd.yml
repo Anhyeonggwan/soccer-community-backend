@@ -1,0 +1,57 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main # main 브랜치에 push될 때 실행
+
+jobs:
+  build-and-push-docker-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest # "유저이름/이미지이름:태그" 형식
+
+  deploy-to-server:
+    name: Deploy to Server
+    needs: build-and-push-docker-image # 이전 job이 성공해야 실행
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            export IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
+            export DB_URL=${{ secrets.DB_URL }}
+            export DB_USERNAME=${{ secrets.DB_USERNAME }}
+            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            export DB_DATABASE=${{ secrets.DB_DATABASE }}
+
+            export MYSQL_ROOT_PASSWORD=${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
+            export MYSQL_DATABASE=$DB_DATABASE
+            export MYSQL_USER=$DB_USERNAME
+            export MYSQL_PASSWORD=$DB_PASSWORD
+
+            docker pull $IMAGE_NAME
+            docker-compose -f compose.yml -f compose.prod.yml down
+            docker-compose -f compose.yml -f compose.prod.yml up -d

@@ -1,0 +1,46 @@
+# compose.prod.yml
+version: '3.8'
+services:
+  api:
+    image: ${IMAGE_NAME} # cd.yml에서 주입될 환경 변수
+    ports:
+      - "8081:8081"
+    restart: always
+    environment:
+      # 실제 운영 환경에서는 GitHub Secrets 등을 통해 주입하는 것이 안전합니다.
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+
+  mysql:
+    image: mysql:8.0
+    container_name: soccer-community-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:latest
+    container_name: soccer-community-redis
+    restart: always
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  mysql-data:
+  redis-data:
