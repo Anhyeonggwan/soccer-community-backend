@@ -16,6 +16,9 @@ FROM openjdk:17-jdk
 WORKDIR /app
 
 # 보안을 위해 새로운 유저 생성
+RUN apt-get update && apt-get install -y --no-install-recommends adduser \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system spring && adduser --system --ingroup spring spring
 USER spring
 
