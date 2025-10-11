@@ -25,6 +25,9 @@ USER spring
 # 빌드 스테이지에서 생성된 JAR 파일만 복사
 COPY --from=builder /build/build/libs/*-SNAPSHOT.jar ./app.jar
 
+# 외부 설정 파일 복사 (JAR 안에 넣지 않음)
+COPY src/main/resources/application-prod.properties ./application-prod.properties
+
 # 포트 노출 (선택 사항, 문서화 목적)
 EXPOSE 8080
 
