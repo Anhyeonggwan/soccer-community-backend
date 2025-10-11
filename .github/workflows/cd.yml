@@ -64,6 +64,7 @@ jobs:
           script: |
             # 파일이 복사된 'api' 디렉토리로 이동합니다.
             cd ~/api
+            printenv # 환경 변수 확인을 위해 추가
             export IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
             export DB_URL=${{ secrets.DB_URL }}
             export DB_USERNAME=${{ secrets.DB_USERNAME }}
