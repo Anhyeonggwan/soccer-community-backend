@@ -1,13 +1,13 @@
 # 1. 빌드 스테이지: Gradle을 사용하여 JAR 파일 생성
-FROM gradle:8.5-jdk17 AS builder
+# FROM gradle:8.5-jdk17 AS builder
 
-WORKDIR /build
+# WORKDIR /build
 
-COPY build.gradle settings.gradle ./
-COPY gradle ./gradle
-COPY src ./src
+# COPY build.gradle settings.gradle ./
+# COPY gradle ./gradle
+# COPY src ./src
 
-RUN gradle build -x test
+# RUN gradle build -x test
 
 
 # 2. 실행 스테이지: 빌드된 JAR만 복사하여 최종 이미지 생성
@@ -25,12 +25,9 @@ USER spring
 # 빌드 스테이지에서 생성된 JAR 파일만 복사
 COPY --from=builder /build/build/libs/*-SNAPSHOT.jar ./app.jar
 
-# 외부 설정 파일 복사 (JAR 안에 넣지 않음)
-COPY src/main/resources/application-prod.properties ./application-prod.properties
-
 # 포트 노출 (선택 사항, 문서화 목적)
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=file:/src/main/resources/application-prod.properties"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
 
 
