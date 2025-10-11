@@ -4,7 +4,7 @@ services:
   api:
     image: ${IMAGE_NAME} # cd.yml에서 주입될 환경 변수
     ports:
-      - "8080:8081"
+      - "8080:8080"
     restart: always
     environment:
                 - SPRING_PROFILES_ACTIVE=prod # 운영 프로파일 활성화
@@ -13,14 +13,6 @@ services:
                 - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
                 - SPRING_REDIS_HOST=redis
                 - SPRING_REDIS_PORT=6379
-                - JWT_SECRET=${JWT_SECRET}
-                - MAIL_USERNAME=${MAIL_USERNAME}
-                - MAIL_PASSWORD=${MAIL_PASSWORD}
-                - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-                - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-                - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
-                - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
-                - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
   mysql:
     image: mysql:8.0
     container_name: soccer-community-mysql
