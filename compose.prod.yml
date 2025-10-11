@@ -8,7 +8,7 @@ services:
     restart: always
     environment:
                 - SPRING_PROFILES_ACTIVE=prod # 운영 프로파일 활성화
-                - SPRING_DATASOURCE_URL=${DB_URL}
+                - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/soccer_community?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
                 - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
                 - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
                 - SPRING_REDIS_HOST=redis
