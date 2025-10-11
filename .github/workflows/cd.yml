@@ -41,6 +41,8 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
+            cd api
+            git pull
             export IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
             export DB_URL=${{ secrets.DB_URL }}
             export DB_USERNAME=${{ secrets.DB_USERNAME }}
