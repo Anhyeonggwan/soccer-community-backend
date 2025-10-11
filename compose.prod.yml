@@ -6,6 +6,8 @@ services:
     ports:
       - "8080:8080"
     restart: always
+    volumes:
+      - ./src/main/resources/application-prod.properties:/app/application-prod.properties
     environment:
                 - SPRING_PROFILES_ACTIVE=prod # 운영 프로파일 활성화
                 # - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/soccer_community?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
