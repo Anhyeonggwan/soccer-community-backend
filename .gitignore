@@ -37,5 +37,6 @@ out/
 .vscode/
 
 application.properties
+application-prod.properties
 compose.override.yml
 .env
