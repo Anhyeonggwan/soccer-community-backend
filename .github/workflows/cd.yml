@@ -33,6 +33,16 @@ jobs:
     name: Deploy to Server
     needs: build-and-push-docker-image # 이전 job이 성공해야 실행
     runs-on: ubuntu-latest
+    env: # 환경 변수를 여기에 정의하여 스크립트에 직접 전달
+          IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.DB_DATABASE }}
+          MYSQL_USER: ${{ secrets.DB_USERNAME }} # DB_USERNAME Secret 사용
+          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -65,26 +75,17 @@ jobs:
             # 파일이 복사된 'api' 디렉토리로 이동합니다.
             cd ~/api
             
-            printenv "DEBUG: IMAGE_NAME=$IMAGE_NAME"
-            printenv "DEBUG: DB_URL=$DB_URL"
-            printenv "DEBUG: DB_USERNAME=$DB_USERNAME"
-            printenv "DEBUG: DB_PASSWORD=$DB_PASSWORD"
-            printenv "DEBUG: DB_DATABASE=$DB_DATABASE"
-            printenv "DEBUG: MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD"
-            printenv "DEBUG: MYSQL_DATABASE=$MYSQL_DATABASE"
-            printenv "DEBUG: MYSQL_USER=$MYSQL_USER"
-            printenv "DEBUG: MYSQL_PASSWORD=$MYSQL_PASSWORD"
+            echo "DEBUG: IMAGE_NAME=$IMAGE_NAME"
+            echo "DEBUG: DB_URL=$DB_URL"
+            echo "DEBUG: DB_USERNAME=$DB_USERNAME"
+            echo "DEBUG: DB_PASSWORD=$DB_PASSWORD"
+            echo "DEBUG: DB_DATABASE=$DB_DATABASE"
+            echo "DEBUG: MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD"
+            echo "DEBUG: MYSQL_DATABASE=$MYSQL_DATABASE"
+            echo "DEBUG: MYSQL_USER=$MYSQL_USER"
+            echo "DEBUG: MYSQL_PASSWORD=$MYSQL_PASSWORD"
 
             docker pull $IMAGE_NAME
             docker compose -f compose.yml -f compose.prod.yml down
             docker compose -f compose.yml -f compose.prod.yml up -d
-        env: # 환경 변수를 여기에 정의하여 스크립트에 직접 전달
-          IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
-          DB_URL: ${{ secrets.DB_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_DATABASE: ${{ secrets.DB_DATABASE }}
-          MYSQL_ROOT_PASSWORD: ${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
-          MYSQL_DATABASE: ${{ secrets.DB_DATABASE }}
-          MYSQL_USER: ${{ secrets.DB_USERNAME }} # DB_USERNAME Secret 사용
-          MYSQL_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        
