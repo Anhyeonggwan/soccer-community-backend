@@ -34,6 +34,27 @@ jobs:
     needs: build-and-push-docker-image # 이전 job이 성공해야 실행
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create project directory on server (if not exists)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          script: |
+            mkdir -p ~/api
+
+      - name: Copy Docker Compose files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          source: "compose.yml,compose.prod.yml" # GitHub Actions 러너의 루트 디렉토리에 있는 파일들
+          target: "~/api" # 원격 서버의 'api' 디렉토리로 복사
+
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -41,8 +62,8 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            cd api
-            git pull
+            # 파일이 복사된 'api' 디렉토리로 이동합니다.
+            cd ~/api
             export IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
             export DB_URL=${{ secrets.DB_URL }}
             export DB_USERNAME=${{ secrets.DB_USERNAME }}
