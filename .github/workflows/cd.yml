@@ -65,15 +65,15 @@ jobs:
             # 파일이 복사된 'api' 디렉토리로 이동합니다.
             cd ~/api
             
-            echo "DEBUG: IMAGE_NAME=$IMAGE_NAME"
-            echo "DEBUG: DB_URL=$DB_URL"
-            echo "DEBUG: DB_USERNAME=$DB_USERNAME"
-            echo "DEBUG: DB_PASSWORD=$DB_PASSWORD"
-            echo "DEBUG: DB_DATABASE=$DB_DATABASE"
-            echo "DEBUG: MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD"
-            echo "DEBUG: MYSQL_DATABASE=$MYSQL_DATABASE"
-            echo "DEBUG: MYSQL_USER=$MYSQL_USER"
-            echo "DEBUG: MYSQL_PASSWORD=$MYSQL_PASSWORD"
+            printenv "DEBUG: IMAGE_NAME=$IMAGE_NAME"
+            printenv "DEBUG: DB_URL=$DB_URL"
+            printenv "DEBUG: DB_USERNAME=$DB_USERNAME"
+            printenv "DEBUG: DB_PASSWORD=$DB_PASSWORD"
+            printenv "DEBUG: DB_DATABASE=$DB_DATABASE"
+            printenv "DEBUG: MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD"
+            printenv "DEBUG: MYSQL_DATABASE=$MYSQL_DATABASE"
+            printenv "DEBUG: MYSQL_USER=$MYSQL_USER"
+            printenv "DEBUG: MYSQL_PASSWORD=$MYSQL_PASSWORD"
 
             docker pull $IMAGE_NAME
             docker compose -f compose.yml -f compose.prod.yml down
