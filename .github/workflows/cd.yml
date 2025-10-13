@@ -1,14 +1,16 @@
 name: Deploy to Production
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
-      - main # main 브랜치에 push될 때 실행
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   deploy-to-server:
-    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    #if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     name: Deploy to Server
     #needs: build-and-push-docker-image # 이전 job이 성공해야 실행
     runs-on: ubuntu-latest
