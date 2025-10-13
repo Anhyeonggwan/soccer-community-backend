@@ -7,7 +7,6 @@ services:
     ports:
       - "8080:8080"
 
-
   mysql:
     image: mysql:8.0
     container_name: soccer-community-mysql
