@@ -37,7 +37,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: application.yml 파일 만들기
+      - name: application.properties 파일 만들기
         run: |
           mkdir -p ./config
           echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./config/application.properties
