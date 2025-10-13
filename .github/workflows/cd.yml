@@ -1,81 +1,63 @@
 name: Deploy to Production
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - main # main 브랜치에 push될 때 실행
 
 jobs:
-  build-and-push-docker-image:
-    name: Build and Push Docker Image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest # "유저이름/이미지이름:태그" 형식
-
   deploy-to-server:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
     name: Deploy to Server
-    needs: build-and-push-docker-image # 이전 job이 성공해야 실행
+    #needs: build-and-push-docker-image # 이전 job이 성공해야 실행
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Create project directory on server (if not exists)
-        uses: appleboy/ssh-action@master
+      - name: Set up Jdk
+        uses: actions/setup-java@v3
         with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Create project directory and move code
+        run: |
+          rm -rf project
+          mkdir -p project
+          shopt -s extglob dotglob
+          mv !(project) project/
+
+      - name: make application.yml
+        run: |
+          mkdir project/src/main/resources
+          echo "${{ secrets.APPLICATION_PROPERTIES }}" > project/src/main/resources/application-prod.properties
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x project/gradlew
+
+      - name: Build and Test
+        run: |
+          cd project
+          ./gradlew build
+
+      - name: scp ec2 전송
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_PRIVATE_KEY }}
+          source: "project/"
+          target: "~/"
+
+      - name: SSH and deploy
+        uses: appleboy/ssh-action@v1
+        with: 
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
-            mkdir -p ~/api
-
-      - name: Copy Docker Compose files to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
-          source: "compose.yml,compose.prod.yml" # GitHub Actions 러너의 루트 디렉토리에 있는 파일들
-          target: "~/api" # 원격 서버의 'api' 디렉토리로 복사
-
-      - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_PRIVATE_KEY }}
-          script: |
-            # 파일이 복사된 'api' 디렉토리로 이동합니다.
-            cd ~/api
-            
-            export IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/soccer-community-api:latest
-            export DB_URL=${{ secrets.DB_URL }}
-            export DB_USERNAME=${{ secrets.DB_USERNAME }}
-            export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            export DB_DATABASE=${{ secrets.DB_DATABASE }}
-
-            export MYSQL_ROOT_PASSWORD=${{ secrets.PROD_MYSQL_ROOT_PASSWORD }}
-            export MYSQL_DATABASE=$DB_DATABASE
-            export MYSQL_USER=$DB_USERNAME
-            export MYSQL_PASSWORD=$DB_PASSWORD
-
-            docker pull $IMAGE_NAME
-            docker compose -f compose.yml -f compose.prod.yml down
-            docker compose -f compose.yml -f compose.prod.yml up -d
+            cd project
+            sudo docker compose down
+            sudo docker compose up -d --build
