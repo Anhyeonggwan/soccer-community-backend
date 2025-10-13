@@ -28,6 +28,6 @@ COPY --from=builder /build/build/libs/*-SNAPSHOT.jar ./app.jar
 # 포트 노출 (선택 사항, 문서화 목적)
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
 
 
