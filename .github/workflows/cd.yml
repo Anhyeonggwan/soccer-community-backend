@@ -40,7 +40,7 @@ jobs:
       - name: application.properties 파일 만들기
         run: |
           mkdir -p ~/config
-          echo "${{ secrets.APPLICATION_PROPERTIES }}" > ./config/application.properties
+          echo "${{ secrets.APPLICATION_PROPERTIES }}" > ~/config/application.properties
 
       - name: Create project directory on server (if not exists)
         uses: appleboy/ssh-action@master
