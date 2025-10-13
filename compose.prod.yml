@@ -2,11 +2,29 @@
 version: '3.8'
 services:
   api:
-    build: .
+    image: ${IMAGE_NAME} # cd.yml에서 주입될 환경 변수
     container_name: soccer-community-api
     ports:
       - "8080:8080"
-
+    volumes:
+      - ./config/application.properties:/app/config/application.properties
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod # 운영 프로파일 활성화
+    #   - SPRING_DATASOURCE_URL=${DB_URL}
+    #   - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+    #   - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    #   - SPRING_REDIS_HOST=redis
+    #   - SPRING_REDIS_PORT=6379
+    #   - SPRING_MAIL_HOST=smtp.gmail.com # 디버깅을 위해 직접 주입
+    #   - JWT_SECRET=${JWT_SECRET}
+    #   - MAIL_USERNAME=${MAIL_USERNAME}
+    #   - MAIL_PASSWORD=${MAIL_PASSWORD}
+    #   - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    #   - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+    #   - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+    #   - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
+    #   - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
   mysql:
     image: mysql:8.0
     container_name: soccer-community-mysql
