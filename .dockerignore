@@ -1,0 +1,27 @@
+# Git
+.git
+.gitignore
+
+# IDE metadata
+.idea
+.vscode
+
+# Gradle cache and build outputs
+build
+.gradle
+
+# Docker orchestration files
+Dockerfile
+.dockerignore
+compose.yml
+compose.prod.yml
+*.tar
+
+# Environment files
+.env
+
+# Documentation
+README.md
+
+# Logs
+*.log
