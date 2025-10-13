@@ -37,19 +37,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: application.properties 파일 만들기
-        run: |
-          mkdir -p ~/config
-          echo "${{ secrets.APPLICATION_PROPERTIES }}" > ~/config/application.properties
-
       - name: Create project directory on server (if not exists)
         uses: appleboy/ssh-action@master
+        env:
+          APPLICATION_PROPERTIES: ${{ secrets.APPLICATION_PROPERTIES }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           script: |
             mkdir -p ~/api
+            mkdir -p ~/api/config
+            echo "$APPLICATION_PROPERTIES" > ~/api/config/application.properties
 
       - name: Copy Docker Compose files to server
         uses: appleboy/scp-action@master
