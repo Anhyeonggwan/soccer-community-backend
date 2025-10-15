@@ -27,9 +27,12 @@ import com.soccercommunity.api.user.domain.UserSocialLogin;
 import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
 import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
 import com.soccercommunity.api.user.dto.LinkNaverRequestDto;
+import com.soccercommunity.api.user.dto.LoginResponseDto;
+import com.soccercommunity.api.user.dto.LoginResultDto;
 import com.soccercommunity.api.user.dto.NaverUserProfileDto;
 import com.soccercommunity.api.user.dto.SignUpRequestDto;
 import com.soccercommunity.api.user.dto.TokenDto;
+import com.soccercommunity.api.user.dto.UserInfoDto;
 import com.soccercommunity.api.user.naver.NaverApi;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -176,7 +179,7 @@ public class AuthService {
 
     /* 로그인 */
     @Transactional
-    public TokenDto login(String email, String password) {
+    public LoginResultDto login(String email, String password) {
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, password);
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
@@ -189,17 +192,27 @@ public class AuthService {
         TokenDto tokenDto = jwtTokenProvider.generateTokenDto(findAuthentication);
 
         redisTemplate.opsForValue().set(
-                findAuthentication.getName(),
+                String.valueOf(user.getUserId()),
                 tokenDto.getRefreshToken(),
                 1,
                 TimeUnit.DAYS
         );
-        return tokenDto;
+
+        UserInfoDto userInfoDto = UserInfoDto.from(user);
+        LoginResponseDto loginResponseDto = LoginResponseDto.builder()
+                .accessToken(tokenDto.getAccessToken())
+                .userInfo(userInfoDto)
+                .build();
+
+        return LoginResultDto.builder()
+                .loginResponse(loginResponseDto)
+                .refreshToken(tokenDto.getRefreshToken())
+                .build();
     }
 
     /* 토큰 재발급 */
     @Transactional
-    public TokenDto reissue(String refreshToken) {
+    public LoginResultDto reissue(String refreshToken) {
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             log.warn("Invalid or expired incoming refreshToken: {}", refreshToken);
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
@@ -208,12 +221,15 @@ public class AuthService {
         // Refresh Token에서 사용자 ID(subject) 추출
         Long userId = Long.parseLong(jwtTokenProvider.getSubject(refreshToken));
         log.info("Extracted userId from refreshToken: {}", userId);
+        
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         UserDetails userDetails = customUserDetailsService.loadUserById(userId);
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
         String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId));
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
-            log.warn("RefreshToken mismatch for user {}. Stored: {}, Incoming: {}", userId, storedRefreshToken, refreshToken);
+            log.warn("Refresh token mismatch for userId {}: provided={}, stored={}", userId, refreshToken, storedRefreshToken);
             throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
@@ -226,7 +242,16 @@ public class AuthService {
                 TimeUnit.DAYS
         );
 
-        return tokenDto;
+        UserInfoDto userInfoDto = UserInfoDto.from(user);
+        LoginResponseDto loginResponseDto = LoginResponseDto.builder()
+                .accessToken(tokenDto.getAccessToken())
+                .userInfo(userInfoDto)
+                .build();
+
+        return LoginResultDto.builder()
+                .loginResponse(loginResponseDto)
+                .refreshToken(tokenDto.getRefreshToken())
+                .build();
     }
 
     /* 로그아웃 */
