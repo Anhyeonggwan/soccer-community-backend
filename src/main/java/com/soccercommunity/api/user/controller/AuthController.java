@@ -37,6 +37,11 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/hello")
+    public String getMethodName() {
+        return "주희야 안녕~";
+    }
+
     /* 회원가입 */
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequestDto requestDto) {
