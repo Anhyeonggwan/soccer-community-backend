@@ -65,7 +65,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Next.js 개발 서버 주소
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "https://v0-soccer-community-website.vercel.app", "http://43.202.191.134:8080")); // 허용할 Origin 목록
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
