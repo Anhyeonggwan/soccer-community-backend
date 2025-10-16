@@ -24,15 +24,7 @@ import com.soccercommunity.api.security.jwt.JwtTokenProvider;
 import com.soccercommunity.api.user.domain.AuthProvider;
 import com.soccercommunity.api.user.domain.UserEntity;
 import com.soccercommunity.api.user.domain.UserSocialLogin;
-import com.soccercommunity.api.user.dto.GoogleSignUpRequestDto;
-import com.soccercommunity.api.user.dto.LinkGoogleRequestDto;
-import com.soccercommunity.api.user.dto.LinkNaverRequestDto;
-import com.soccercommunity.api.user.dto.LoginResponseDto;
-import com.soccercommunity.api.user.dto.LoginResultDto;
-import com.soccercommunity.api.user.dto.NaverUserProfileDto;
-import com.soccercommunity.api.user.dto.SignUpRequestDto;
-import com.soccercommunity.api.user.dto.TokenDto;
-import com.soccercommunity.api.user.dto.UserInfoDto;
+import com.soccercommunity.api.user.dto.*;
 import com.soccercommunity.api.user.naver.NaverApi;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -108,7 +100,7 @@ public class AuthService {
 
     /* Naver 로그인/회원가입 */
     @Transactional
-    public TokenDto naverLogin(String code, String state) {
+    public LoginResultDto naverLogin(String code, String state) {
         String accessToken = naverApi.getAccessToken(code, state);
         NaverUserProfileDto.Response naverUserInfo = naverApi.getUserInfo(accessToken);
         return processSocialLogin(AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
@@ -116,14 +108,14 @@ public class AuthService {
 
     /* Google 로그인/회원가입 */
     @Transactional
-    public TokenDto googleLogin(String idToken) {
+    public LoginResultDto googleLogin(String idToken) {
         GoogleSignUpRequestDto googleUserInfo = googleCheck(idToken);
         return processSocialLogin(AuthProvider.GOOGLE, googleUserInfo, googleUserInfo.getId(), googleUserInfo.getEmail(), UserEntity::from);
     }
 
     /* 소셜 로그인 통합 처리 */
     @Transactional
-    private <T> TokenDto processSocialLogin(AuthProvider provider, T userInfo, String providerId, String email, Function<T, UserEntity> fromFunction) {
+    private <T> LoginResultDto processSocialLogin(AuthProvider provider, T userInfo, String providerId, String email, Function<T, UserEntity> fromFunction) {
         Optional<UserSocialLogin> socialLoginOpt = userSocialLoginRepository.findByProviderAndProviderId(provider, providerId);
 
         UserEntity user;
@@ -133,7 +125,7 @@ public class AuthService {
             Optional<UserEntity> existingUserOpt = userRepository.findByUserEmail(email);
 
             if (existingUserOpt.isPresent()) {
-                throw new CustomException(ErrorCode.USER_ALREADY_EXISTS);
+                user = existingUserOpt.get();
             } else {
                 user = fromFunction.apply(userInfo);
                 userRepository.save(user);
@@ -153,14 +145,24 @@ public class AuthService {
 
         TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
 
+        // Redis에 Refresh Token 저장
         redisTemplate.opsForValue().set(
-                authentication.getName(),
+                String.valueOf(user.getUserId()),
                 tokenDto.getRefreshToken(),
-                1,
+                1, // 7일
                 TimeUnit.DAYS
         );
 
-        return tokenDto;
+        UserInfoDto userInfoDto = UserInfoDto.from(user);
+        LoginResponseDto loginResponseDto = LoginResponseDto.builder()
+                .accessToken(tokenDto.getAccessToken())
+                .userInfo(userInfoDto)
+                .build();
+
+        return LoginResultDto.builder()
+                .loginResponse(loginResponseDto)
+                .refreshToken(tokenDto.getRefreshToken())
+                .build();
     }
 
     /* 닉네임 중복 체크 체크 */
@@ -191,10 +193,11 @@ public class AuthService {
 
         TokenDto tokenDto = jwtTokenProvider.generateTokenDto(findAuthentication);
 
+        // Redis에 Refresh Token 저장
         redisTemplate.opsForValue().set(
                 String.valueOf(user.getUserId()),
                 tokenDto.getRefreshToken(),
-                1,
+                1, // 1일
                 TimeUnit.DAYS
         );
 
@@ -218,27 +221,27 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        // Refresh Token에서 사용자 ID(subject) 추출
         Long userId = Long.parseLong(jwtTokenProvider.getSubject(refreshToken));
         log.info("Extracted userId from refreshToken: {}", userId);
+
+        // Redis에서 저장된 Refresh Token 조회 및 검증
+        String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId));
+        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
+            throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
+        }
         
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         UserDetails userDetails = customUserDetailsService.loadUserById(userId);
         Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-        String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId));
-        if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
-            log.warn("Refresh token mismatch for userId {}: provided={}, stored={}", userId, refreshToken, storedRefreshToken);
-            throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
-        }
-
         TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
 
+        // Redis에 새로운 Refresh Token 저장
         redisTemplate.opsForValue().set(
                 String.valueOf(userId),
                 tokenDto.getRefreshToken(),
-                1,
+                7, // 7일
                 TimeUnit.DAYS
         );
 
@@ -262,11 +265,14 @@ public class AuthService {
         }
 
         Authentication authentication = jwtTokenProvider.getAuthentication(accessToken);
+        String userId = authentication.getName();
 
-        if (redisTemplate.opsForValue().get(authentication.getName()) != null) {
-            redisTemplate.delete(authentication.getName());
+        // Redis에서 Refresh Token 삭제
+        if (redisTemplate.opsForValue().get(userId) != null) {
+            redisTemplate.delete(userId);
         }
 
+        // Access Token을 블랙리스트에 추가
         Long expiration = jwtTokenProvider.getRemainingMilliseconds(accessToken);
         redisTemplate.opsForValue().set(accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
     }

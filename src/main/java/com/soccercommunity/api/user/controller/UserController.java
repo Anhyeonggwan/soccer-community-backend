@@ -6,13 +6,13 @@ import com.soccercommunity.api.user.dto.ModifyNickNameDto;
 import com.soccercommunity.api.user.service.AuthService;
 import com.soccercommunity.api.user.service.UserService;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 
@@ -23,6 +23,21 @@ public class UserController {
 
     private final AuthService authService;
     private final UserService userService;
+
+    /* 로그아웃 */
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader("Authorization") String accessToken, HttpServletResponse response) {
+        authService.logout(accessToken.substring(7));
+
+        // 브라우저의 refreshToken 쿠키를 삭제하는 로직
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .maxAge(0)
+                .path("/")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK));
+    }
 
     /* 닉네임 수정 */
     @PutMapping("/modifyNickname")

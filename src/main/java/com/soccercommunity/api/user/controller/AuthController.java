@@ -7,23 +7,13 @@ import com.soccercommunity.api.common.response.ErrorCode;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.service.AuthService;
 
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
-import java.io.IOException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 
 @RestController
@@ -32,11 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class AuthController {
 
     private final AuthService authService;
-
-    @GetMapping("/hello")
-    public String getMethodName() {
-        return "주희야 안녕~";
-    }
 
     /* 회원가입 */
     @PostMapping("/signup")
@@ -56,7 +41,7 @@ public class AuthController {
                 .secure(true)
                 .sameSite("Strict")
                 .path("/")
-                .maxAge(1 * 24 * 60 * 60) // 1 days
+                .maxAge(1 * 24 * 60 * 60) // 7 days
                 .build();
 
         return ResponseEntity.ok()
@@ -70,7 +55,6 @@ public class AuthController {
         if (refreshToken == null) {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
         }
-        System.out.println("refreshToken >>> " + refreshToken);
         LoginResultDto loginResult = authService.reissue(refreshToken);
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
@@ -88,17 +72,20 @@ public class AuthController {
 
     /* Naver 로그인/회원가입 */
     @GetMapping("/naver")
-    public void naverLogin(@RequestParam("code") String code, @RequestParam("state") String state, HttpServletResponse response) throws IOException {
-        TokenDto tokenDto = authService.naverLogin(code, state);
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+    public ResponseEntity<ApiResponse<LoginResponseDto>> naverLogin(@RequestParam("code") String code, @RequestParam("state") String state) {
+        LoginResultDto loginResult = authService.naverLogin(code, state);
+
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
                 .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
                 .path("/")
-                .maxAge(86400) // 1 days
+                .maxAge(1 * 24 * 60 * 60) // 7 days
                 .build();
-        response.addHeader("Set-Cookie", cookie.toString());
-        // 프론트로 토큰 전달(팝업 닫기 등 화면 처리)
-        String redirectUrl = "http://localhost:3000/auth/callback?accessToken=" + tokenDto.getAccessToken();
-        response.sendRedirect(redirectUrl);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(ApiResponse.success(SuccessCode.LOGIN_SUCCESS, loginResult.getLoginResponse()));
     }
 
     /* Naver 계정 연동 */
@@ -117,29 +104,20 @@ public class AuthController {
 
     /* Google 로그인/회원가입 */
     @PostMapping("/google")
-    public ResponseEntity<ApiResponse<TokenDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto, HttpServletResponse response) {
-        TokenDto tokenDto = authService.googleLogin(requestDto.getIdToken());
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenDto.getRefreshToken())
+    public ResponseEntity<ApiResponse<LoginResponseDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto) {
+        LoginResultDto loginResult = authService.googleLogin(requestDto.getIdToken());
+
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
                 .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
                 .path("/")
-                .maxAge(86400) // 1 days
+                .maxAge(1 * 24 * 60 * 60) // 7 days
                 .build();
-        response.addHeader("Set-Cookie", cookie.toString());
-        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, tokenDto));
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(ApiResponse.success(SuccessCode.LOGIN_SUCCESS, loginResult.getLoginResponse()));
     }
 
-    /* 로그아웃 */
-    @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader("Authorization") String accessToken, HttpServletResponse response) {
-        authService.logout(accessToken.substring(7));
-
-        // 브라우저의 refreshToken 쿠키를 삭제하는 로직
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "deleted") // 값은 비어있지 않은 아무 문자열
-                .maxAge(0)
-                .path("/")
-                .build();
-        response.addHeader("Set-Cookie", cookie.toString());
-
-        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK));
-    }
 }
