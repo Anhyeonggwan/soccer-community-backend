@@ -2,6 +2,7 @@ package com.soccercommunity.api.user.controller;
 
 import com.soccercommunity.api.common.response.ApiResponse;
 import com.soccercommunity.api.common.response.SuccessCode;
+import com.soccercommunity.api.user.dto.LoginResponseDto;
 import com.soccercommunity.api.user.dto.ModifyNickNameDto;
 import com.soccercommunity.api.user.service.AuthService;
 import com.soccercommunity.api.user.service.UserService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -23,6 +25,13 @@ public class UserController {
 
     private final AuthService authService;
     private final UserService userService;
+
+    /* 나의 정보 가져오기 */
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<LoginResponseDto>> getMe(@RequestHeader("Authorization") String accessToken) {
+        LoginResponseDto loginResponseDto = authService.getMe(accessToken.substring(7));
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, loginResponseDto));
+    }
 
     /* 로그아웃 */
     @PostMapping("/logout")

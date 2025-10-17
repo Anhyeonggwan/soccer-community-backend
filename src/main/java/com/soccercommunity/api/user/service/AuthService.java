@@ -348,4 +348,30 @@ public class AuthService {
         userSocialLoginRepository.save(socialLogin);
         user.addSocialLogin(socialLogin);
     }
+
+    /* 나의 정보 가져오기 */
+    public LoginResponseDto getMe(String accessToken) {
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            throw new CustomException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
+
+        Authentication authentication = jwtTokenProvider.getAuthentication(accessToken);
+        String userId = authentication.getName();
+        UserEntity user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        UserInfoDto userInfoDto = UserInfoDto.from(user);
+
+        TokenDto tokenDto = jwtTokenProvider.generateTokenDto(authentication);
+        redisTemplate.opsForValue().set(
+                String.valueOf(user.getUserId()),
+                tokenDto.getRefreshToken(),
+                1, // 1일
+                TimeUnit.DAYS
+        );
+
+        return LoginResponseDto.builder()
+                .accessToken(tokenDto.getAccessToken())
+                .userInfo(userInfoDto)
+                .build();
+    }
 }
