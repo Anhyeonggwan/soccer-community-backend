@@ -1,5 +1,7 @@
 package com.soccercommunity.api.user.dto;
 
+import java.io.Serializable;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,7 +20,7 @@ public class NaverUserProfileDto {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class Response {
+    public static class Response implements Serializable{
         private String id;
         private String name;
         private String email;

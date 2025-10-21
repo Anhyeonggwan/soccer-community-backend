@@ -7,8 +7,11 @@ import com.soccercommunity.api.common.response.ErrorCode;
 import com.soccercommunity.api.common.response.SuccessCode;
 import com.soccercommunity.api.user.service.AuthService;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.io.IOException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -70,10 +73,18 @@ public class AuthController {
                 .body(ApiResponse.success(SuccessCode.TOKEN_REISSUED, loginResult.getLoginResponse()));
     }
 
-    /* Naver 로그인/회원가입 */
+    /* Naver 인증 redirect */
     @GetMapping("/naver")
-    public ResponseEntity<ApiResponse<LoginResponseDto>> naverLogin(@RequestParam("code") String code, @RequestParam("state") String state) {
-        LoginResultDto loginResult = authService.naverLogin(code, state);
+    public ResponseEntity<ApiResponse<String>> naverAuth(@RequestParam("code") String code, @RequestParam("state") String state, HttpServletResponse response) throws IOException {
+        String naverUUID = authService.naverAuth(code, state);
+
+        return ResponseEntity.ok(ApiResponse.success(SuccessCode.OK, naverUUID));
+    }
+
+    /* Naver 로그인/회원가입 */
+    @PostMapping("/naver/login")
+    public ResponseEntity<ApiResponse<LoginResponseDto>> naverLogin(@RequestBody NaverUUIDDto uuid) throws IOException {
+        LoginResultDto loginResult = authService.naverLogin(uuid.getUuid());
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
                 .httpOnly(true)
@@ -82,7 +93,7 @@ public class AuthController {
                 .path("/")
                 .maxAge(1 * 24 * 60 * 60) // 7 days
                 .build();
-
+        
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(ApiResponse.success(SuccessCode.LOGIN_SUCCESS, loginResult.getLoginResponse()));

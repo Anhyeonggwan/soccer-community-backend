@@ -25,6 +25,7 @@ import com.soccercommunity.api.user.domain.AuthProvider;
 import com.soccercommunity.api.user.domain.UserEntity;
 import com.soccercommunity.api.user.domain.UserSocialLogin;
 import com.soccercommunity.api.user.dto.*;
+import com.soccercommunity.api.user.dto.NaverUserProfileDto.Response;
 import com.soccercommunity.api.user.naver.NaverApi;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,6 +39,7 @@ import java.security.GeneralSecurityException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -50,12 +52,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserSocialLoginRepository userSocialLoginRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final NaverApi naverApi;
     private final CustomUserDetailsService customUserDetailsService;
 
     @Value("${google.client.id}")
     private String googleClientId;
+
+    private static final String NAVER_PREFIX = "NAVER_";
 
     /* 회원가입 */
     @Transactional
@@ -98,11 +102,29 @@ public class AuthService {
             .build();
     }
 
-    /* Naver 로그인/회원가입 */
-    @Transactional
-    public LoginResultDto naverLogin(String code, String state) {
+    /* Naver 인증 */
+    public String naverAuth(String code, String state) {
         String accessToken = naverApi.getAccessToken(code, state);
         NaverUserProfileDto.Response naverUserInfo = naverApi.getUserInfo(accessToken);
+
+        /* uuid 식별 */
+        String uuid = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(
+                NAVER_PREFIX + uuid,
+                naverUserInfo,
+                10, // 10분
+                TimeUnit.MINUTES
+        );
+
+        return uuid;
+    }
+
+    /* Naver 로그인/회원가입 */
+    @Transactional
+    public LoginResultDto naverLogin(String uuid) {
+        NaverUserProfileDto.Response naverUserInfo = (Response) redisTemplate.opsForValue().get(NAVER_PREFIX + uuid);
+        //String accessToken = naverApi.getAccessToken(code, state);
+        //NaverUserProfileDto.Response naverUserInfo = naverApi.getUserInfo(accessToken);
         return processSocialLogin(AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
     }
 
@@ -225,7 +247,7 @@ public class AuthService {
         log.info("Extracted userId from refreshToken: {}", userId);
 
         // Redis에서 저장된 Refresh Token 조회 및 검증
-        String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId));
+        String storedRefreshToken = redisTemplate.opsForValue().get(String.valueOf(userId)).toString();
         if (storedRefreshToken == null || !storedRefreshToken.equals(refreshToken)) {
             throw new CustomException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
@@ -374,4 +396,5 @@ public class AuthService {
                 .userInfo(userInfoDto)
                 .build();
     }
+
 }
