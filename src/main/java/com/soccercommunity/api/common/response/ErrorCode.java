@@ -31,7 +31,8 @@ public enum ErrorCode {
     INVALID_SOCIAL_LOGIN_TYPE(HttpStatus.BAD_REQUEST, "유효하지 않은 소셜 로그인 타입입니다."),
 
     // Naver
-    NAVER_TOKEN_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "네이버 Access Token 발급에 실패했습니다.");
+    NAVER_TOKEN_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "네이버 Access Token 발급에 실패했습니다."),
+    NAVER_UUID_NOT_FOUND_IN_REDIS(HttpStatus.NOT_FOUND, "네이버 UUID를 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;

@@ -122,10 +122,16 @@ public class AuthService {
     /* Naver 로그인/회원가입 */
     @Transactional
     public LoginResultDto naverLogin(String uuid) {
+        if(redisTemplate.opsForValue().get(NAVER_PREFIX + uuid) == null) {
+            throw new CustomException(ErrorCode.NAVER_UUID_NOT_FOUND_IN_REDIS);
+        }
+
         NaverUserProfileDto.Response naverUserInfo = (Response) redisTemplate.opsForValue().get(NAVER_PREFIX + uuid);
-        //String accessToken = naverApi.getAccessToken(code, state);
-        //NaverUserProfileDto.Response naverUserInfo = naverApi.getUserInfo(accessToken);
-        return processSocialLogin(AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
+
+        LoginResultDto resultDto = processSocialLogin(AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
+        redisTemplate.delete(NAVER_PREFIX + uuid);
+
+        return resultDto;
     }
 
     /* Google 로그인/회원가입 */
