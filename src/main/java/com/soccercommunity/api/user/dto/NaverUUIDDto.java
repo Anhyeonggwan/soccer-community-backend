@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class GoogleIdTokenDto {
+public class NaverUUIDDto {
     private String code;
-    private String idToken;
+    private String uuid;
+
 }
