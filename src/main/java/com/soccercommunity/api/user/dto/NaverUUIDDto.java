@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class NaverUUIDDto {
-
+    private String code;
     private String uuid;
 
 }

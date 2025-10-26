@@ -32,7 +32,11 @@ public enum ErrorCode {
 
     // Naver
     NAVER_TOKEN_REQUEST_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "네이버 Access Token 발급에 실패했습니다."),
-    NAVER_UUID_NOT_FOUND_IN_REDIS(HttpStatus.NOT_FOUND, "네이버 UUID를 찾을 수 없습니다.");
+    NAVER_UUID_NOT_FOUND_IN_REDIS(HttpStatus.NOT_FOUND, "네이버 UUID를 찾을 수 없습니다."),
+
+    // Social Login
+    EMAIL_EXISTS_AS_REGULAR(HttpStatus.CONFLICT, "이미 일반 계정으로 가입된 이메일입니다. 일반 로그인 후 계정을 연동해주세요."),
+    EMAIL_EXISTS_AS_SOCIAL(HttpStatus.CONFLICT, "이미 다른 소셜 계정으로 가입된 이메일입니다.");
 
     private final HttpStatus status;
     private final String message;

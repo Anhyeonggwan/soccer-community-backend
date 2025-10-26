@@ -84,7 +84,7 @@ public class AuthController {
     /* Naver 로그인/회원가입 */
     @PostMapping("/naver/login")
     public ResponseEntity<ApiResponse<LoginResponseDto>> naverLogin(@RequestBody NaverUUIDDto uuid) throws IOException {
-        LoginResultDto loginResult = authService.naverLogin(uuid.getUuid());
+        LoginResultDto loginResult = authService.naverLogin(uuid.getUuid(), uuid.getCode());
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
                 .httpOnly(true)
@@ -116,7 +116,7 @@ public class AuthController {
     /* Google 로그인/회원가입 */
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<LoginResponseDto>> googleLogin(@RequestBody GoogleIdTokenDto requestDto) {
-        LoginResultDto loginResult = authService.googleLogin(requestDto.getIdToken());
+        LoginResultDto loginResult = authService.googleLogin(requestDto.getIdToken(), requestDto.getCode());
 
         ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
                 .httpOnly(true)

@@ -10,5 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class GoogleIdTokenDto {
+    private String code;
     private String idToken;
 }

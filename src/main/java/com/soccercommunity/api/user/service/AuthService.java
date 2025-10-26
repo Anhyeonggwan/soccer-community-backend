@@ -121,14 +121,14 @@ public class AuthService {
 
     /* Naver 로그인/회원가입 */
     @Transactional
-    public LoginResultDto naverLogin(String uuid) {
+    public LoginResultDto naverLogin(String uuid, String code) {
         if(redisTemplate.opsForValue().get(NAVER_PREFIX + uuid) == null) {
             throw new CustomException(ErrorCode.NAVER_UUID_NOT_FOUND_IN_REDIS);
         }
 
         NaverUserProfileDto.Response naverUserInfo = (Response) redisTemplate.opsForValue().get(NAVER_PREFIX + uuid);
 
-        LoginResultDto resultDto = processSocialLogin(AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
+        LoginResultDto resultDto = processSocialLogin(code, AuthProvider.NAVER, naverUserInfo, naverUserInfo.getId(), naverUserInfo.getEmail(), UserEntity::from);
         redisTemplate.delete(NAVER_PREFIX + uuid);
 
         return resultDto;
@@ -136,36 +136,51 @@ public class AuthService {
 
     /* Google 로그인/회원가입 */
     @Transactional
-    public LoginResultDto googleLogin(String idToken) {
+    public LoginResultDto googleLogin(String idToken, String code) {
         GoogleSignUpRequestDto googleUserInfo = googleCheck(idToken);
-        return processSocialLogin(AuthProvider.GOOGLE, googleUserInfo, googleUserInfo.getId(), googleUserInfo.getEmail(), UserEntity::from);
+        return processSocialLogin(code, AuthProvider.GOOGLE, googleUserInfo, googleUserInfo.getId(), googleUserInfo.getEmail(), UserEntity::from);
     }
 
     /* 소셜 로그인 통합 처리 */
     @Transactional
-    private <T> LoginResultDto processSocialLogin(AuthProvider provider, T userInfo, String providerId, String email, Function<T, UserEntity> fromFunction) {
+    private <T> LoginResultDto processSocialLogin(String code, AuthProvider provider, T userInfo, String providerId, String email, Function<T, UserEntity> fromFunction) {
         Optional<UserSocialLogin> socialLoginOpt = userSocialLoginRepository.findByProviderAndProviderId(provider, providerId);
 
-        UserEntity user;
+        UserEntity user = null;
         if (socialLoginOpt.isPresent()) {
-            user = socialLoginOpt.get().getUser();
-        } else {
-            Optional<UserEntity> existingUserOpt = userRepository.findByUserEmail(email);
 
-            if (existingUserOpt.isPresent()) {
-                user = existingUserOpt.get();
-            } else {
+            if(code.equals("login")) {  // 로그인하는 경우
+                user = socialLoginOpt.get().getUser();
+            }else if(code.equals("signup")) { // 회원가입을 하는 경우
+                throw new CustomException(ErrorCode.EMAIL_EXISTS_AS_SOCIAL);
+            }
+        } else {
+            if(code.equals("login")) {  // 로그인하는 경우
+                throw new CustomException(ErrorCode.USER_NOT_FOUND);
+            } else if(code.equals("signup")) {  // 회원가입을 하는 경우
+                userRepository.findByUserEmail(email).ifPresent(existingUser -> {
+                    if (existingUser.getSocialLogins() == null || existingUser.getSocialLogins().isEmpty()) {
+                        // 일반 계정으로 이미 가입된 경우
+                        throw new CustomException(ErrorCode.EMAIL_EXISTS_AS_REGULAR);
+                    } else {
+                        // 다른 소셜 계정으로 이미 가입된 경우
+                        throw new CustomException(ErrorCode.EMAIL_EXISTS_AS_SOCIAL);
+                    }
+                });
+
+                // 위에서 에러가 발생하지 않았다면, 새로운 사용자이므로 생성 진행
                 user = fromFunction.apply(userInfo);
                 userRepository.save(user);
-            }
 
-            UserSocialLogin socialLogin = UserSocialLogin.builder()
-                    .user(user)
-                    .provider(provider)
-                    .providerId(providerId)
-                    .build();
-            userSocialLoginRepository.save(socialLogin);
-            user.addSocialLogin(socialLogin);
+                UserSocialLogin socialLogin = UserSocialLogin.builder()
+                        .user(user)
+                        .provider(provider)
+                        .providerId(providerId)
+                        .build();
+                userSocialLoginRepository.save(socialLogin);
+                user.addSocialLogin(socialLogin);
+            }
+            
         }
 
         List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getUserRole()));
