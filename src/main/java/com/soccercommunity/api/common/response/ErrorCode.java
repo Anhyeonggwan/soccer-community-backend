@@ -24,6 +24,7 @@ public enum ErrorCode {
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "리프레시 토큰을 찾을 수 없습니다."),
     REFRESH_TOKEN_MISMATCH(HttpStatus.BAD_REQUEST, "리프레시 토큰이 일치하지 않습니다."),
     INVALID_ACCESS_TOKEN(HttpStatus.BAD_REQUEST, "유효하지 않은 액세스 토큰입니다."),
+    ACCESS_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "액세스 토큰이 만료되었습니다."),
     INVALID_GOOGLE_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 구글 토큰입니다."),
     EMAIL_MISMATCH(HttpStatus.BAD_REQUEST, "계정 연동을 위한 이메일이 일치하지 않습니다."),
 
